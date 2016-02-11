@@ -15,7 +15,46 @@ class MoverClient{
 		if(serverIp!=null){
 			Socket socket=connectToServer(serverIp);
 			if(socket!=null)
-				saveFile(socket);
+				printData(socket);
+		}
+	}
+	public static void printData(Socket socket){
+		try{
+			DataInputStream in=new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+			String newFilename=null;
+			long newFileSize=0;
+			String root=in.readUTF();
+			System.out.println(root);
+			File rootFile=new File(root);
+			File newFile;
+			rootFile.mkdirs();
+			int totalFiles=in.readInt();
+			for(int i=0;i<totalFiles;i++){
+				newFilename=in.readUTF();
+				newFileSize=in.readLong();
+				System.out.println(rootFile+" "+newFilename);
+				newFile=new File(rootFile.getCanonicalPath(),newFilename);
+				System.out.println(newFile);
+				if(newFile.getParentFile().mkdir()){
+					newFile.createNewFile();
+					OutputStream out=new FileOutputStream(newFile);
+					byte[] buffer=new byte[BUFFER_SIZE];
+					int bytesRead;
+					long toRead=newFileSize;
+					while(toRead>0){
+						bytesRead=in.read(buffer);
+						out.write(buffer,0,bytesRead);
+						toRead-=bytesRead;
+					}
+					out.flush();
+					out.close();
+					System.out.println("to read "+toRead);
+				}else{
+					System.out.println("cannot create dirs for file");
+				}
+			}
+		}catch(Exception ex){
+			ex.printStackTrace();
 		}
 	}
 	public static void saveFile(Socket socket){

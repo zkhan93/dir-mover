@@ -28,25 +28,43 @@ class MoverServer{
 		}
 	}
 	public static void serverDir(File dir){
+		int fileCount=0;
+		float totalSize=0;
 		Socket socket=null;
-		InputStream in=null;
-		OutputStream out=null;
+		DataOutputStream out=null;
 		Stack<File> stack=new Stack<File>();
+		ArrayList<File> files=new ArrayList<File>();
 		try{
 			socket=listenForClient();
-			out=socket.getOutputStream();
+			out=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
 			File file=null;
 			stack.push(dir);
 			while(!stack.empty()){
 				file=stack.pop();
 				if(file.isFile()){
-					System.out.println(file+" "+file.length());
-					in=new FileInputStream(file);
+					files.add(file);
+					totalSize+=file.length();
 				}
 				if(file.isDirectory()){
 					for(File f:file.listFiles())
 						stack.push(f);
 				}
+			}
+			fileCount=files.size();
+			out.writeUTF(dir.getName());
+			out.writeInt(fileCount);
+			System.out.println(fileCount+" files and total: "+totalSize+" Bytes");
+			for(File f:files){
+				out.writeUTF(dir.toURI().relativize(f.toURI()).getPath());
+				out.writeLong(f.length());
+				InputStream in=new FileInputStream(f);
+				byte[] buffer=new byte[BUFFER_SIZE];
+				int bytesRead;
+				while((bytesRead=in.read(buffer))>0){
+					out.write(buffer,0,bytesRead);
+				}
+				out.flush();
+				in.close();
 			}
 		}catch(Exception ex){
 			ex.printStackTrace();
@@ -54,8 +72,6 @@ class MoverServer{
 			try{
 				if(out!=null)
 					out.close();
-				if(in!=null)
-					in.close();
 				if(socket!=null)
 					socket.close();
 			}catch(Exception ex){
